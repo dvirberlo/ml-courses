@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "njpwerner.autodocstring",
+    "aaron-bond.better-comments",
+    "streetsidesoftware.code-spell-checker",
+    "editorconfig.editorconfig",
+    "github.copilot",
+    "eamodio.gitlens",
+    "visualstudioexptteam.vscodeintellicode",
+    "visualstudioexptteam.intellicode-api-usage-examples",
+    "ms-toolsai.jupyter",
+    "yzhang.markdown-all-in-one",
+    "esbenp.prettier-vscode",
+    "fabiospampinato.vscode-todo-plus",
+    "ms-python.python",
+    "ms-python.vscode-pylance"
+  ]
+}
