@@ -543,4 +543,55 @@ Properties of neural networks:
    It seem logical to reduce entropy, and then make separate models for each leaf (for large and complex data).
 2. Moreover, many combination of all the models types can be explored.
 
-# Supervised Learning
+# Unsupervised Learning
+
+Generally, while supervised learning is used to predict a label y given the input data X, which makes the model inherently, at best, as good as than the supervisor(s) that produced the labels (usually humans), unsupervised learning is used to find patterns in the data, without any labels, and therefore, theoretically, the model can do better than the any supervisor(s), because it is not limited by the quality or the existence of the labels.
+
+## Clustering and K-Means
+
+Clustering is a technique that is used to group the data into clusters, based on the similarity of the data. \
+The similarity is usually measured by the distance between the data points, and the clustering is done by minimizing the distance between the data points in the same cluster, and maximizing the distance between the data points in different clusters.
+
+### K-Means Algorithm
+
+K-means clustering is a technique that is used to cluster the data into k clusters, by minimizing the distance between the data points in the same cluster, and maximizing the distance between the data points in different clusters. \
+`K` sample are chosen randomly from the data `X`, which will represent the center of each clouter, and are called centroids.
+Then, each iteration is as follows:
+
+1. Each data point is assign to the closest centroid.
+2. Each centroid is update to be the means of the data points that were assigned to it.
+
+Repeat the process until the centroids do not change, or they do not change significantly enough.
+
+Notice, that there might be a case where a centroid will have 0 assigned points. \
+In this case, it is common to just drop this centroid (this will result in K-1 clusters), or less commonly to reinitialize its values randomly.
+
+### K-Means Cost Function
+
+The (hidden) cost function that the K-Means algorithm tries to minimize is the sum of the distance between each centroid and its assign data points, squared(squared for each distance, not the total).
+
+$$
+J(\vec c, \vec \mu) = \frac{1}{m} \sum_{i=1}^{m}{{||x^{(i)} - \mu_{c^{(i)}} ||}^2}
+$$
+
+### Initializing Centroid
+
+It is common to choose random data points from the actual X data as initial values for centroids. \
+Those initial values of the centroids can have large impact on the result of the clustering algorithm. \
+Because of that, it is common to repeat the algorithm for a reasonable number (each time randomizing the initial centroids values) and select the one which got to the minimized cost.
+
+#### Thoughts
+
+Maybe there is another property that can be pre-calculated to select the best resulting initial centroids values. \
+Like, the `K` data points that are the farthest from each other, or maybe the closest, or another parameter?
+
+### Choosing the number K
+
+By logic, `K` most be smaller than `m`(the `X` data points count). \
+But, it is also logical that the bigger `K` is, the lower the cost function `J` will be. \
+Therefore, one cannot optimize the value `k` just be looking for the lowest cost outcome.
+
+One method to address this is called Elbow Method, which when the graph of the cost function `J` as a function of `K` looks like a partially folded arm. \
+Meaning, a high slope at the beginning, that flattens very quickly at a certain point (the elbow), and this elbow point is the optimal `K` value.
+
+But not always there is such elbow, therefore another method is to just check how good each model is, based on its desired use case, on its downstream purpose.
