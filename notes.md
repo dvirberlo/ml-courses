@@ -595,3 +595,50 @@ One method to address this is called Elbow Method, which when the graph of the c
 Meaning, a high slope at the beginning, that flattens very quickly at a certain point (the elbow), and this elbow point is the optimal `K` value.
 
 But not always there is such elbow, therefore another method is to just check how good each model is, based on its desired use case, on its downstream purpose.
+
+## Anomaly Detection
+
+Anomaly detection is a technique that is used to detect outliers in the data. \
+An outlier is a data point that is very different from the rest of the data. \
+Anomaly detection is used to detect fraud, mal-manufactured and malfunctioning objects and systems.
+
+### Gaussian Distribution
+
+Anomaly detection is done by using a Gaussian distribution to model the data, and then, by using the probability density function of the Gaussian distribution, to calculate the probability of each data point, and then, by using a threshold, to detect the outliers.
+
+The Gaussian distribution is a continuous probability distribution, that is used to model the data. \
+The Gaussian distribution is defined by two parameters: the mean and the variance. \
+The mean is the average of the data, and the variance is the average of the squared distance of the data from the mean. \\
+Then the probability is compared to `epsilon`.
+
+$$
+\begin{gather*}
+\mu = \frac{1}{m} \sum_{i=1}^{m}x^{(i)} \\
+% \vec \mu = \frac{1}{m} \sum_{i=1}^{m}\vec x^{(i)} \\
+\sigma^2 = \frac{1}{m} \sum_{i=1}^{m}{{(x^{(i)} - \mu)}^2} \\
+% \vec \sigma^2 = \frac{1}{m} \sum_{i=1}^{m}{{(\vec x^{(i)} - \vec \mu)}^2} \\
+p(x) = \frac{1}{\sqrt{2\pi\sigma^2}} e^{-\frac{(x - \mu)^2}{2\sigma^2}} \\
+p(\vec x) = \prod_{j=1}^{n}{p(x_j; \mu_j, {\sigma_j}^2)} \\
+\end{gather*}
+$$
+
+To solve for vector `X`, since the features are statistically independent(although it works well also when some are not), the combine probability is the multiplication all the feature probabilities.
+
+### Develop and Evaluate Anomaly Detection Model
+
+A cross-validation and a test set which include common samples as well as a some anomalous samples, can be compared with the result of the model (whether the probability is lower than `epsilon`).\
+(If the dataset is small, it is common to use only a cross validation set, with the risk of overfitting). \
+Additionally, the metrics mentioned in [skewed datasets and precision recall tradeoff](#skewed-datasets-and-precision-recall-tradeoff).
+
+When the model detects a false positive anomaly, it can usually be fixed by detecting what features are missing from the data that make the anomaly an anomaly.
+
+### Anomaly Detection vs Supervised Learning
+
+Anomaly Detection are better when there are small amount of anomalous samples, and where the future anomalies may look very differently, compared to the sampled ones. \
+While Supervised Learning will not identify any anomaly "type" that is not sampled.
+
+### Non Gaussian Features
+
+When the features are not Gaussian, it is common to use a transformation to make them Gaussian, and then use the Gaussian distribution to model the data. \
+Common transformation are a log function and square root transformation(or any power of a number). \
+(There are some automated methods to evaluate how close a feature set is to gaussian graph).
