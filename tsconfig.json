@@ -1,0 +1,10 @@
+{
+  "target": "ESNext",
+  "compilerOptions": {
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true
+  }
+}

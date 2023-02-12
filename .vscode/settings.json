@@ -1,4 +1,10 @@
 {
   "python.analysis.typeCheckingMode": "basic",
-  "cSpell.words": ["overcomplicating", "overfitting", "Softmax", "underfitting"]
+  "cSpell.words": [
+    "overcomplicating",
+    "overfitting",
+    "Softmax",
+    "underfitting"
+  ],
+  "deno.enable": true
 }
