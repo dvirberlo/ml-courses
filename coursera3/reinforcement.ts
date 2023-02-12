@@ -7,9 +7,89 @@
  */
 
 export module Reinforcement {
-  export type DecisionTable<Action> = {
-    [state: string]: QDecision<Action>;
-  };
+  // export type DecisionTable<Action> = {
+  //   [state: string]: QDecision<Action>;
+  // };
+  export abstract class DecisionTable<Action> {
+    public abstract get(hash: string): Promise<QDecision<Action> | undefined>;
+    public abstract set(
+      hash: string,
+      decision: QDecision<Action>
+    ): Promise<void>;
+    public abstract has(hash: string): Promise<boolean>;
+  }
+  export class MemoryDecisionTable<Action> implements DecisionTable<Action> {
+    constructor(
+      public readonly table: { [state: string]: QDecision<Action> } = {}
+    ) {}
+    public async get(hash: string): Promise<QDecision<Action> | undefined> {
+      return this.table[hash];
+    }
+    public async set(hash: string, decision: QDecision<Action>): Promise<void> {
+      this.table[hash] = decision;
+    }
+    public async has(hash: string): Promise<boolean> {
+      return hash in this.table;
+    }
+  }
+
+  export class FileDecisionTable<Action> implements DecisionTable<Action> {
+    constructor(public readonly dirPath: string) {}
+    private hashString = (str: string): string => {
+      let hash = 0;
+      for (let i = 0, len = str.length; i < len; i++) {
+        let chr = str.charCodeAt(i);
+        hash = (hash << 5) - hash + chr;
+        hash |= 0; // Convert to 32bit integer
+      }
+      return hash.toString(16);
+    };
+    public async get(hash: string): Promise<QDecision<Action> | undefined> {
+      try {
+        return JSON.parse(
+          await Deno.readTextFile(
+            `${this.dirPath}/${this.hashString(hash)}.json`
+          )
+        );
+      } catch (e) {
+        console.log(
+          `error while reading and parsing ${this.dirPath}/${this.hashString(
+            hash
+          )}.json`
+        );
+      }
+    }
+    public async set(hash: string, decision: QDecision<Action>): Promise<void> {
+      try {
+        await Deno.writeTextFile(
+          `${this.dirPath}/${this.hashString(hash)}.json`,
+          JSON.stringify(decision),
+          { create: true }
+        );
+      } catch (e) {
+        console.log(
+          `error while signifying and writing ${this.dirPath}/${this.hashString(
+            hash
+          )}.json`
+        );
+      }
+    }
+    public async has(hash: string): Promise<boolean> {
+      try {
+        return Deno.stat(`${this.dirPath}/${this.hashString(hash)}.json`)
+          .then(() => true)
+          .catch(() => false);
+      } catch (e) {
+        console.log(
+          `error while checking status of ${this.dirPath}/${this.hashString(
+            hash
+          )}.json`
+        );
+        return false;
+      }
+    }
+  }
+
   export type QDecision<Action> = {
     action: Action;
     reward: number;
@@ -41,11 +121,11 @@ export module Reinforcement {
     public readonly reverseReward = (reward: number): number => -reward;
   }
 
-  export const multiPlayerTrain = <Action>(
+  export const multiPlayerTrain = async <Action>(
     env: RewardTwoPlayerEnvironment<Action>,
-    gamma = 1
-  ): DecisionTable<Action> => {
-    const decisionTable: DecisionTable<Action> = {};
+    gamma = 1,
+    decisionTable: DecisionTable<Action> = new MemoryDecisionTable<Action>()
+  ): Promise<DecisionTable<Action>> => {
     /***
      * @description getReward is a recursive function that calculates the reward of a state by calculating the reward of all possible next states
      * @param state the state to calculate the reward for
@@ -56,25 +136,26 @@ export module Reinforcement {
      * it fills the decision table with the best action for each state \
      * the returned reward is converted to be the reward of the previous player's perspective
      */
-    const getReward = (state: State<Action>): number => {
+    const getReward = async (state: State<Action>): Promise<number> => {
       const stateHash = state.toHash();
-      const _l = Object.keys(decisionTable).length;
-      if (_l % 1000 < 5) console.log(_l);
-      if (stateHash in decisionTable)
-        return env.reverseReward(decisionTable[stateHash].reward);
+      // const _l = Object.keys(decisionTable).length;
+      // if (_l % 1000 < 5) console.log(_l);
+      if (await decisionTable.has(stateHash))
+        return env.reverseReward((await decisionTable.get(stateHash))!.reward);
       if (state.isTerminal())
         return env.reverseReward(env.getStateReward(state));
-      const best = state
-        .getPossibleActions()
-        .map((action) => ({
-          action,
-          reward: getReward(env.reverseState(state.moveCopy(action))),
-        }))
-        .reduce((a, b) => (a.reward >= b.reward ? a : b));
-      decisionTable[stateHash] = best;
+      const best = (
+        await Promise.all(
+          state.getPossibleActions().map(async (action) => ({
+            action,
+            reward: await getReward(env.reverseState(state.moveCopy(action))),
+          }))
+        )
+      ).reduce((a, b) => (a.reward >= b.reward ? a : b));
+      await decisionTable.set(stateHash, best);
       return env.reverseReward(gamma * best.reward);
     };
-    for (const state of env.getInitialStates()) getReward(state);
+    for (const state of env.getInitialStates()) await getReward(state);
 
     return decisionTable;
   };
@@ -89,12 +170,12 @@ export module KingCoin {
     action === Action.Add1 ? 1 : 2;
 
   export abstract class Player {
-    public abstract getMove(state: State): Action;
+    public abstract getMove(state: State): Promise<Action>;
     public abstract getName(): string;
   }
 
   export class RandomPlayer extends Player {
-    public getMove(state: State): Action {
+    public async getMove(state: State): Promise<Action> {
       const possibleActions = state.getPossibleActions();
       return possibleActions[
         Math.floor(Math.random() * possibleActions.length)
@@ -104,7 +185,7 @@ export module KingCoin {
   }
 
   export class HumanPlayer extends Player {
-    public getMove(state: State): Action {
+    public async getMove(state: State): Promise<Action> {
       const possibleActions = state.getPossibleActions();
       const move = prompt("Enter your move: 1 or 2");
       if (parseInt(move || "0") === 1) return Action.Add1;
@@ -120,8 +201,8 @@ export module KingCoin {
     ) {
       super();
     }
-    public getMove(state: State): Action {
-      const decision = this.decisionTable[state.toHash()];
+    public async getMove(state: State): Promise<Action> {
+      const decision = await this.decisionTable.get(state.toHash());
       if (decision === undefined) throw new Error("No decision found");
       return decision.action;
     }
@@ -134,7 +215,7 @@ export module KingCoin {
       public readonly state = new State(5)
     ) {}
 
-    public play(render = false): void {
+    public async play(render = false): Promise<void> {
       let playerTurn = 0;
       if (render) {
         console.log(
@@ -144,7 +225,7 @@ export module KingCoin {
       }
       while (!this.state.isTerminal()) {
         const player = this.players[playerTurn];
-        const move = player.getMove(this.state);
+        const move = await player.getMove(this.state);
         this.state.move(move);
         if (render)
           console.log(
@@ -198,12 +279,12 @@ export module KingCoin3 {
     action === Action.Add1 ? 1 : action === Action.Add2 ? 2 : 3;
 
   export abstract class Player {
-    public abstract getMove(state: State): Action;
+    public abstract getMove(state: State): Promise<Action>;
     public abstract getName(): string;
   }
 
   export class RandomPlayer extends Player {
-    public getMove(state: State): Action {
+    public async getMove(state: State): Promise<Action> {
       const possibleActions = state.getPossibleActions();
       return possibleActions[
         Math.floor(Math.random() * possibleActions.length)
@@ -213,7 +294,7 @@ export module KingCoin3 {
   }
 
   export class HumanPlayer extends Player {
-    public getMove(state: State): Action {
+    public async getMove(state: State): Promise<Action> {
       const possibleActions = state.getPossibleActions();
       const move = prompt("Enter your move: 1 or 2");
       return parseInt(move || "0").toString() as Action;
@@ -228,8 +309,8 @@ export module KingCoin3 {
     ) {
       super();
     }
-    public getMove(state: State): Action {
-      const decision = this.decisionTable[state.toHash()];
+    public async getMove(state: State): Promise<Action> {
+      const decision = await this.decisionTable.get(state.toHash());
       if (decision === undefined) throw new Error("No decision found");
       return decision.action;
     }
@@ -242,7 +323,7 @@ export module KingCoin3 {
       public readonly state = new State(5)
     ) {}
 
-    public play(render = false): void {
+    public async play(render = false): Promise<void> {
       let playerTurn = 0;
       if (render) {
         console.log(
@@ -252,7 +333,7 @@ export module KingCoin3 {
       }
       while (!this.state.isTerminal()) {
         const player = this.players[playerTurn];
-        const move = player.getMove(this.state);
+        const move = await player.getMove(this.state);
         this.state.move(move);
         if (render)
           console.log(
@@ -385,7 +466,7 @@ export module TicTacToe {
 
   // Game:
   export abstract class Player {
-    public abstract getMove(state: State): Action;
+    public abstract getMove(state: State): Promise<Action>;
     public abstract getName(): string;
   }
 
@@ -393,7 +474,7 @@ export module TicTacToe {
     constructor(private readonly id = Math.random().toString(32).slice(2, 4)) {
       super();
     }
-    public getMove(state: State): Action {
+    public async getMove(state: State): Promise<Action> {
       const possibleActions = state.getPossibleActions();
       return possibleActions[
         Math.floor(Math.random() * possibleActions.length)
@@ -403,7 +484,7 @@ export module TicTacToe {
   }
 
   export class HumanPlayer extends Player {
-    public getMove(state: State): Action {
+    public async getMove(state: State): Promise<Action> {
       const possibleActions = state.getPossibleActions();
       const move = prompt("Enter your move: (row, col)")?.split(",") as [
         string,
@@ -421,8 +502,8 @@ export module TicTacToe {
     ) {
       super();
     }
-    public getMove(state: State): Action {
-      const decision = this.decisionTable[state.toHash()];
+    public async getMove(state: State): Promise<Action> {
+      const decision = await this.decisionTable.get(state.toHash());
       if (decision === undefined) throw new Error("No decision found");
       return decision.action;
     }
@@ -436,7 +517,7 @@ export module TicTacToe {
       public state = new State(emptyBoard)
     ) {}
 
-    public play(render = false): void {
+    public async play(render = false): Promise<void> {
       let playerTurn = 0;
       if (render) {
         console.log(
@@ -446,7 +527,7 @@ export module TicTacToe {
       }
       while (!this.state.isTerminal()) {
         const player = this.players[playerTurn];
-        const move = player.getMove(this.state);
+        const move = await player.getMove(this.state);
         this.state.move(move);
         if (render)
           console.log(
@@ -610,7 +691,7 @@ export module FourInARow {
 
   // Game:
   export abstract class Player {
-    public abstract getMove(state: State): Action;
+    public abstract getMove(state: State): Promise<Action>;
     public abstract getName(): string;
   }
 
@@ -618,7 +699,7 @@ export module FourInARow {
     constructor(private readonly id = Math.random().toString(32).slice(2, 4)) {
       super();
     }
-    public getMove(state: State): Action {
+    public async getMove(state: State): Promise<Action> {
       const possibleActions = state.getPossibleActions();
       return possibleActions[
         Math.floor(Math.random() * possibleActions.length)
@@ -628,7 +709,7 @@ export module FourInARow {
   }
 
   export class HumanPlayer extends Player {
-    public getMove(state: State): Action {
+    public async getMove(state: State): Promise<Action> {
       const possibleActions = state.getPossibleActions();
       const move = prompt("Enter your move: (col)") ?? "0";
       return new Action(parseInt(move));
@@ -643,8 +724,8 @@ export module FourInARow {
     ) {
       super();
     }
-    public getMove(state: State): Action {
-      const decision = this.decisionTable[state.toHash()];
+    public async getMove(state: State): Promise<Action> {
+      const decision = await this.decisionTable.get(state.toHash());
       if (decision === undefined) throw new Error("No decision found");
       return decision.action;
     }
@@ -658,7 +739,7 @@ export module FourInARow {
       public state = new State(emptyBoard)
     ) {}
 
-    public play(render = false): void {
+    public async play(render = false): Promise<void> {
       let playerTurn = 0;
       if (render) {
         console.log(
@@ -668,7 +749,7 @@ export module FourInARow {
       }
       while (!this.state.isTerminal()) {
         const player = this.players[playerTurn];
-        const move = player.getMove(this.state);
+        const move = await player.getMove(this.state);
         this.state.move(move);
         if (render)
           console.log(
@@ -875,7 +956,7 @@ const TestKingCoin = async () => {
   // console.clear();
   const coins = 5;
   const env = new KingCoin.GameEnvironment(coins);
-  const table = Reinforcement.multiPlayerTrain(env, 0.5);
+  const table = await Reinforcement.multiPlayerTrain(env, 0.5);
   console.log(table);
   const bot = new KingCoin.BotPlayer(table, "1");
   const bot2 = new KingCoin.BotPlayer(table, "2");
@@ -889,7 +970,7 @@ const TestKingCoin3 = async () => {
   // console.clear();
   const coins = 20;
   const env = new KingCoin3.GameEnvironment(coins);
-  const table = Reinforcement.multiPlayerTrain(env, 1);
+  const table = await Reinforcement.multiPlayerTrain(env, 1);
   console.log(table);
   const bot = new KingCoin3.BotPlayer(table, "1");
   const bot2 = new KingCoin3.BotPlayer(table, "2");
@@ -902,10 +983,16 @@ const TestKingCoin3 = async () => {
 const TestTicTacToe = async () => {
   // console.clear();
   const env = new TicTacToe.GameEnvironment();
-  // const table = Reinforcement.multiPlayerTrain(env, 0.999);
-  const table = JSON.parse(
-    await Deno.readTextFile("./coursera3/saved/TicTacToe.json")
-  ) as Reinforcement.DecisionTable<TicTacToe.Action>;
+  const table = await Reinforcement.multiPlayerTrain(
+    env,
+    0.999,
+    new Reinforcement.FileDecisionTable<TicTacToe.Action>(
+      "./coursera3/saved/TicTacToeFolder"
+    )
+  );
+  // const table = JSON.parse(
+  //   await Deno.readTextFile("./coursera3/saved/TicTacToe.json")
+  // ) as Reinforcement.DecisionTable<TicTacToe.Action>;
   // await Deno.writeTextFile(
   //   "./coursera3/saved/TicTacToe.json",
   //   JSON.stringify(table)
@@ -923,11 +1010,17 @@ const TestTicTacToe = async () => {
 const TestFourInARow = async () => {
   // console.clear();
   const env = new FourInARow.GameEnvironment();
-  const table = Reinforcement.multiPlayerTrain(env, 0.999);
-  await Deno.writeTextFile(
-    "./coursera3/saved/FourInARow.json",
-    JSON.stringify(table)
+  const table = await Reinforcement.multiPlayerTrain(
+    env,
+    0.999,
+    new Reinforcement.FileDecisionTable<TicTacToe.Action>(
+      "./coursera3/saved/FourInARowFolder"
+    )
   );
+  // await Deno.writeTextFile(
+  //   "./coursera3/saved/FourInARow.json",
+  //   JSON.stringify(table)
+  // );
   // const table = JSON.parse(
   //   await Deno.readTextFile("./coursera3/saved/FourInARow.json")
   // ) as Reinforcement.DecisionTable<FourInARow.Action>;
