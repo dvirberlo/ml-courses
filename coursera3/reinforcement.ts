@@ -954,16 +954,16 @@ export module FourInARow {
 
 const TestKingCoin = async () => {
   // console.clear();
-  const coins = 5;
+  const coins = 200;
   const env = new KingCoin.GameEnvironment(coins);
-  const table = await Reinforcement.multiPlayerTrain(env, 0.5);
+  const table = await Reinforcement.multiPlayerTrain(env, 1);
   console.log(table);
   const bot = new KingCoin.BotPlayer(table, "1");
   const bot2 = new KingCoin.BotPlayer(table, "2");
   const human = new KingCoin.HumanPlayer();
   const random = new KingCoin.RandomPlayer();
   const game = new KingCoin.Game([bot, bot2], new KingCoin.State(coins));
-  game.play(true);
+  // game.play(true);
 };
 
 const TestKingCoin3 = async () => {
@@ -986,9 +986,10 @@ const TestTicTacToe = async () => {
   const table = await Reinforcement.multiPlayerTrain(
     env,
     0.999,
-    new Reinforcement.FileDecisionTable<TicTacToe.Action>(
-      "./coursera3/saved/TicTacToeFolder"
-    )
+    new Reinforcement.MemoryDecisionTable<TicTacToe.Action>()
+    // new Reinforcement.FileDecisionTable<TicTacToe.Action>(
+    //   "./coursera3/saved/TicTacToeFolder"
+    // )
   );
   // const table = JSON.parse(
   //   await Deno.readTextFile("./coursera3/saved/TicTacToe.json")
@@ -1003,7 +1004,7 @@ const TestTicTacToe = async () => {
   const human = new TicTacToe.HumanPlayer();
   const random = new TicTacToe.RandomPlayer();
   // const game = new TicTacToe.Game(env, [bot, bot2]);
-  const game = new TicTacToe.Game(env, [bot, human]);
+  const game = new TicTacToe.Game(env, [bot, bot]);
   game.play(true);
 };
 
@@ -1035,6 +1036,11 @@ const TestFourInARow = async () => {
   // game.play(true);
 };
 
-const main = TestFourInARow;
+const main = TestKingCoin;
 
 main();
+
+// deno run  --allow-read --allow-write --v8-flags=--optimize-for-size,--max-old-space-size=196608,--max-semi-space-size=256,--semi-space-growth-factor=4 ./coursera3/reinforcement.ts
+
+// RES 5.5g
+// MEM 8.5%

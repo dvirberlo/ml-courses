@@ -12,6 +12,7 @@
     "esbenp.prettier-vscode",
     "fabiospampinato.vscode-todo-plus",
     "ms-python.vscode-pylance",
-    "donjayamanne.python-environment-manager"
+    "donjayamanne.python-environment-manager",
+    "denoland.vscode-deno"
   ]
 }

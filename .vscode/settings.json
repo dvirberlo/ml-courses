@@ -6,5 +6,6 @@
     "Softmax",
     "underfitting"
   ],
-  "deno.enable": true
+  "deno.enable": true,
+  "deno.lint": false
 }
