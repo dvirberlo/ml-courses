@@ -98,6 +98,7 @@ export abstract class State<Action> {
 export abstract class RewardEnvironment<Action> {
   public abstract getInitialStates(): State<Action>[];
   public abstract getStateReward(state: State<Action>): number;
+  public abstract actionToString(action: Action): string;
 }
 
 export abstract class RewardTwoPlayerEnvironment<
@@ -160,7 +161,7 @@ export const multiPlayerTrain = async <Action>(
         if (reward > best.reward) best = { action, reward };
       }
 
-      await decisionTable.set(stateHash, best);
+      decisionTable.set(stateHash, best);
     }
     return env.reverseReward(gamma * best.reward);
   };
@@ -280,7 +281,9 @@ export class Game<Action> {
       this.state.move(move);
       if (render)
         console.log(
-          `${player.getName()}: +${move}: \n${this.state.toString()}\n`
+          `${player.getName()}: +${this.env.actionToString(
+            move
+          )}: \n${this.state.toString()}\n`
         );
       playerTurn = (playerTurn + 1) % 2;
       this.state = this.env.reverseState(this.state);

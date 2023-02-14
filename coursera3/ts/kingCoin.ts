@@ -109,6 +109,8 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
 
   public getWinner = (state: Reinforcement.State<Action>): number =>
     state.isTerminal() ? 1 : 0;
+
+  public actionToString = (action: Action): string => action;
 }
 
 const TestKingCoin = async () => {

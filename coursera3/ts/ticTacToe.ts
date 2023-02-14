@@ -84,26 +84,14 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
   };
   public reverseState = (state: State): State =>
     new State(state.board.map((row) => row.map((cell) => -cell)) as Board);
+
+  public actionToString = (action: Action): string =>
+    `[${action.row}, ${action.col}]`;
 }
 
 // Game:
-export abstract class Player {
-  public abstract getMove(state: State): Promise<Action>;
-  public abstract getName(): string;
-}
 
-export class RandomPlayer extends Player {
-  constructor(private readonly id = Math.random().toString(32).slice(2, 4)) {
-    super();
-  }
-  public async getMove(state: State): Promise<Action> {
-    const possibleActions = state.getPossibleActions();
-    return possibleActions[Math.floor(Math.random() * possibleActions.length)];
-  }
-  public getName = (): string => `Random#${this.id}`;
-}
-
-export class HumanPlayer extends Player {
+export class HumanPlayer extends Reinforcement.Player<Action> {
   public async getMove(state: State): Promise<Action> {
     const possibleActions = state.getPossibleActions();
     const move = prompt("Enter your move: (row, col)")?.split(",") as [
@@ -113,63 +101,6 @@ export class HumanPlayer extends Player {
     return new Action(parseInt(move[0]), parseInt(move[1]));
   }
   public getName = (): string => "Human";
-}
-
-export class BotPlayer extends Player {
-  constructor(
-    public readonly decisionTable: Reinforcement.DecisionTable<Action>,
-    private readonly id = Math.random().toString(32).slice(2, 4)
-  ) {
-    super();
-  }
-  public async getMove(state: State): Promise<Action> {
-    const decision = await this.decisionTable.get(state.toHash());
-    if (decision === undefined) throw new Error("No decision found");
-    return decision.action;
-  }
-  public getName = (): string => `Bot#${this.id}`;
-}
-
-export class Game {
-  constructor(
-    public readonly env: GameEnvironment,
-    public readonly players: Player[],
-    public state = new State(emptyBoard)
-  ) {}
-
-  public async play(render = false): Promise<void> {
-    let playerTurn = 0;
-    if (render) {
-      console.log(`Game: ${this.players.map((p) => p.getName()).join(" vs ")}`);
-      console.log(this.state.toString());
-    }
-    while (!this.state.isTerminal()) {
-      const player = this.players[playerTurn];
-      const move = await player.getMove(this.state);
-      this.state.move(move);
-      if (render)
-        console.log(
-          `${player.getName()}: +${move}: \n${this.state.toString()}\n`
-        );
-      playerTurn = (playerTurn + 1) % 2;
-      this.state = this.env.reverseState(this.state);
-    }
-    if (render) {
-      switch (this.env.getWinner(this.state)) {
-        case 1:
-          console.log(`Game: winner is ${this.players[playerTurn].getName()}`);
-          break;
-        case -1:
-          console.log(
-            `Game: winner is ${this.players.at(playerTurn - 1)!.getName()}`
-          );
-          break;
-        case 0:
-          console.log(`Game: draw`);
-          break;
-      }
-    }
-  }
 }
 
 const TestTicTacToe = async () => {
@@ -189,12 +120,12 @@ const TestTicTacToe = async () => {
   //   JSON.stringify(table)
   // );
   // console.log(Object.keys(table.table).length);
-  const bot = new BotPlayer(table, "1");
-  const bot2 = new BotPlayer(table, "2");
+  const bot = new Reinforcement.BotPlayer(table, "1");
+  const bot2 = new Reinforcement.BotPlayer(table, "2");
   const human = new HumanPlayer();
-  const random = new RandomPlayer();
+  const random = new Reinforcement.RandomPlayer();
   // const game = new Game(env, [bot, bot2]);
-  const game = new Game(env, [bot, bot2]);
+  const game = new Reinforcement.Game(env, [bot, bot2]);
   game.play(true);
 };
 
