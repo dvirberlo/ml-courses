@@ -1,6 +1,6 @@
 # Machine Learning Course
 
-See [notes](./coursera_notes.md)
+See [coursera notes](./coursera/README.md) and [reinforcement notes](./extra-reinforcement/README.md).
 
 Course: [Coursera Machine Learning course by Andrew Ng.](https://www.coursera.org/learn/machine-learning).
 

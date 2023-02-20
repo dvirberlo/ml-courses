@@ -15,20 +15,7 @@ export enum Action {
 export const pileMove = (action: Action): number =>
   action === Action.Add1 ? 1 : 2;
 
-export abstract class Player {
-  public abstract getMove(state: State): Promise<Action>;
-  public abstract getName(): string;
-}
-
-export class RandomPlayer extends Player {
-  public async getMove(state: State): Promise<Action> {
-    const possibleActions = state.getPossibleActions();
-    return possibleActions[Math.floor(Math.random() * possibleActions.length)];
-  }
-  public getName = (): string => "Random";
-}
-
-export class HumanPlayer extends Player {
+export class HumanPlayer extends Reinforcement.Game.Player<Action> {
   public async getMove(state: State): Promise<Action> {
     const possibleActions = state.getPossibleActions();
     const move = prompt("Enter your move: 1 or 2");
@@ -38,24 +25,9 @@ export class HumanPlayer extends Player {
   public getName = (): string => "Human";
 }
 
-export class BotPlayer extends Player {
-  constructor(
-    public readonly decisionTable: Reinforcement.DecisionTable<Action>,
-    private readonly id = Math.random().toString(32).slice(2, 4)
-  ) {
-    super();
-  }
-  public async getMove(state: State): Promise<Action> {
-    const decision = await this.decisionTable.get(state.toHash());
-    if (decision === undefined) throw new Error("No decision found");
-    return decision.action;
-  }
-  public getName = (): string => `Bot#${this.id}`;
-}
-
 export class Game {
   constructor(
-    public readonly players: Player[],
+    public readonly players: Reinforcement.Game.Player<Action>[],
     public readonly state = new State(5)
   ) {}
 
@@ -82,7 +54,8 @@ export class Game {
 export class State implements Reinforcement.State<Action> {
   public current_pile: number = 0;
   constructor(public readonly pile_size: number) {}
-  public getPossibleActions = () => [Action.Add1, Action.Add2];
+  public getPossibleActions = () =>
+    [Action.Add1, Action.Add2].slice(0, this.pile_size - this.current_pile);
   public isTerminal = (): boolean => this.current_pile >= this.pile_size;
   public move = (action: Action): void => {
     this.current_pile += pileMove(action);
@@ -103,8 +76,9 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
     super();
   }
   public getInitialStates = (): State[] => [new State(this.pile_size)];
-  public getStateReward = (state: State): number =>
-    state.isTerminal() ? -1 : 0;
+  public getStateReward = (state: State, stateDepth = 1): number =>
+    state.isTerminal() ? (-1) ** stateDepth : 0;
+  // state.isTerminal() ? -1 : 0;
   public reverseState = (state: State): State => state;
 
   public getWinner = (state: Reinforcement.State<Action>): number =>
@@ -117,14 +91,17 @@ const TestKingCoin = async () => {
   // console.clear();
   const coins = 5;
   const env = new GameEnvironment(coins);
-  const table = await Reinforcement.multiPlayerTrain(env, 1);
+
+  const table = await Reinforcement.PreTrained.multiPlayerTrain(env, 1);
   console.log(table);
-  const bot = new BotPlayer(table, "1");
-  const bot2 = new BotPlayer(table, "2");
+
+  const bot = new Reinforcement.Game.BotPlayer(table, "1");
+  const bot2 = new Reinforcement.Game.BotPlayer(table, "2");
   const human = new HumanPlayer();
-  const random = new RandomPlayer();
+  const random = new Reinforcement.Game.RandomPlayer();
+  // const game = new Game([bot, human], new State(coins));
   const game = new Game([bot, bot2], new State(coins));
-  // game.play(true);
+  game.play(true);
 };
 
 export const main = TestKingCoin;

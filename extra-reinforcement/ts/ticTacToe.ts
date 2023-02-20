@@ -91,7 +91,7 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
 
 // Game:
 
-export class HumanPlayer extends Reinforcement.Player<Action> {
+export class HumanPlayer extends Reinforcement.Game.Player<Action> {
   public async getMove(state: State): Promise<Action> {
     const possibleActions = state.getPossibleActions();
     const move = prompt("Enter your move: (row, col)")?.split(",") as [
@@ -106,12 +106,13 @@ export class HumanPlayer extends Reinforcement.Player<Action> {
 const TestTicTacToe = async () => {
   // console.clear();
   const env = new GameEnvironment();
-  // const table = new Reinforcement.MemoryDecisionTable<Action>();
-  const table = new Reinforcement.FileDecisionTable<Action>(
-    "../saved/TicTacToe"
-  );
 
-  await Reinforcement.multiPlayerTrain(env, 0.999, table);
+  const table = new Reinforcement.PreTrained.MemoryDecisionTable<Action>();
+  // const table = new Reinforcement.FileDecisionTable<Action>(
+  //   "../saved/TicTacToe"
+  // );
+
+  await Reinforcement.PreTrained.multiPlayerTrain(env, 0.999, table);
   // const table = JSON.parse(
   //   await Deno.readTextFile("./coursera3/saved/TicTacToe.json")
   // ) as Reinforcement.DecisionTable<Action>;
@@ -119,13 +120,12 @@ const TestTicTacToe = async () => {
   //   "./coursera3/saved/TicTacToe.json",
   //   JSON.stringify(table)
   // );
-  // console.log(Object.keys(table.table).length);
-  const bot = new Reinforcement.BotPlayer(table, "1");
-  const bot2 = new Reinforcement.BotPlayer(table, "2");
+  const bot = new Reinforcement.Game.BotPlayer(table, "1");
+  const bot2 = new Reinforcement.Game.BotPlayer(table, "2");
   const human = new HumanPlayer();
-  const random = new Reinforcement.RandomPlayer();
-  // const game = new Game(env, [bot, bot2]);
-  const game = new Reinforcement.Game(env, [bot, bot2]);
+  const random = new Reinforcement.Game.RandomPlayer();
+  const game = new Reinforcement.Game.Game(env, [bot, bot2]);
+  // const game = new Reinforcement.Game.Game(env, [bot, human]);
   game.play(true);
 };
 

@@ -57,59 +57,6 @@ function getWinner(board: Board): Cell {
 
   return 0;
 }
-/*const getWinner2 = (board: Board): Cell => {
-  // horizontal
-  for (let row = 0; row < 6; row++) {
-    for (let col = 0; col < 4; col++) {
-      const cell = board[row][col];
-      if (
-        cell !== 0 &&
-        board[row][col + 1] === cell &&
-        board[row][col + 2] === cell &&
-        board[row][col + 3] === cell
-      )
-        return cell;
-    }
-  }
-  // vertical
-  for (let row = 0; row < 3; row++) {
-    for (let col = 0; col < 7; col++) {
-      const cell = board[row][col];
-      if (
-        cell !== 0 &&
-        board[row + 1][col] === cell &&
-        board[row + 2][col] === cell &&
-        board[row + 3][col] === cell
-      )
-        return cell;
-    }
-  }
-  for (let row = 0; row < 3; row++) {
-    // diagonal
-    for (let col = 0; col < 4; col++) {
-      const cell = board[row][col];
-      if (
-        cell !== 0 &&
-        board[row + 1][col + 1] === cell &&
-        board[row + 2][col + 2] === cell &&
-        board[row + 3][col + 3] === cell
-      )
-        return cell;
-    }
-    // anti-diagonal
-    for (let col = 3; col < 7; col++) {
-      const cell = board[row][col];
-      if (
-        cell !== 0 &&
-        board[row + 1][col - 1] === cell &&
-        board[row + 2][col - 2] === cell &&
-        board[row + 3][col - 3] === cell
-      )
-        return cell;
-    }
-  }
-  return 0;
-};*/
 
 export class State implements Reinforcement.State<Action> {
   constructor(public readonly board: Board = emptyBoard) {}
@@ -169,7 +116,7 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
   public actionToString = (action: Action): string => `[${action.col}]`;
 }
 
-export class HumanPlayer implements Reinforcement.Player<Action> {
+export class HumanPlayer implements Reinforcement.Game.Player<Action> {
   public async getMove(state: State): Promise<Action> {
     const possibleActions = state.getPossibleActions();
     const move = prompt("Enter your move: (col)") ?? "0";
@@ -181,21 +128,32 @@ export class HumanPlayer implements Reinforcement.Player<Action> {
 const TestFourInARow = async () => {
   // console.clear();
   const env = new GameEnvironment();
-  const table = await Reinforcement.multiPlayerTrain(
-    env,
-    0.999,
-    new Reinforcement.FileDecisionTable<Action>(
-      `../saved/${WIN_LENGTH}_InARow_${ROWS}x${COLS}`
-    )
-  );
+  // const dt = new Reinforcement.PreTrained.FileDecisionTable<Action>(
+  //   `../saved/${WIN_LENGTH}_InARow_${ROWS}x${COLS}`
+  // );
+  const table = new Reinforcement.PreTrained.MemoryDecisionTable<Action>();
+  await Reinforcement.PreTrained.multiPlayerTrain(env, 0.999, table);
+
+  // seq.fit(
+  //   tf.tensor2d(
+  //     Object.values(table.table).map(({ action }, state) => state)
+  //   ) as tf.Tensor2D,
+  //   tf.tensor2d(
+  //     Object.values(table.table).map(({ action }, state) => action.col)
+  //   ) as tf.Tensor2D,
+  //   {
+  //     epochs: 100,
+  //     batchSize: 32,
+  //   }
+  // );
+
   // console.log(Object.keys(table.table).length);
-  const bot = new Reinforcement.BotPlayer(table, "1");
-  const bot2 = new Reinforcement.BotPlayer(table, "2");
+  const bot = new Reinforcement.Game.BotPlayer(table, "1");
+  const bot2 = new Reinforcement.Game.BotPlayer(table, "2");
   const human = new HumanPlayer();
-  const random = new Reinforcement.RandomPlayer();
-  const game = new Reinforcement.Game(env, [bot, bot2]);
-  // const game = new Game(env, [bot, human]);
-  // const game = new Game(env, [human, bot]);
+  const random = new Reinforcement.Game.RandomPlayer();
+  const game = new Reinforcement.Game.Game(env, [bot, bot2]);
+  // const game = new Reinforcement.Game.Game(env, [bot, human]);
   game.play(true);
 };
 
