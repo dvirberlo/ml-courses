@@ -1,4 +1,10 @@
-# Machine Learning Course
+<div style="text-align:center" align="center">
+
+# **ML Courses & Research**
+
+</div>
+
+Machine Learning Courses and Research.
 
 See [coursera notes](./coursera/README.md) and [reinforcement notes](./extra-reinforcement/README.md).
 

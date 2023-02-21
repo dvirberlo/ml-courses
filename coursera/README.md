@@ -5,7 +5,7 @@ latex multiline:
    end-aligned:
 \begin{align*}
  -->
-<div style="text-align:center">
+<div style="text-align:center" align="center">
 
 # **Notes**
 

@@ -2,6 +2,18 @@
 //   [state: string]: QDecision<Action>;
 // };
 
+const writePromise = (file: string, data: string) =>
+  Deno.writeTextFile(file, data, { create: true });
+
+const readPromise = (file: string) => Deno.readTextFile(file);
+
+const existsPromise = (file: string) =>
+  Deno.stat(file)
+    .then(() => true)
+    .catch(() => false);
+
+const mkdirPromise = (dir: string) => Deno.mkdir(dir, { recursive: true });
+
 export abstract class State<Action> {
   public abstract getPossibleActions(): Action[];
   public abstract isTerminal(): boolean;
@@ -56,7 +68,7 @@ export module PreTrained {
   export class FileDecisionTable<Action> implements DecisionTable<Action> {
     private dirCreated;
     constructor(public readonly dirPath: string) {
-      this.dirCreated = Deno.mkdir(dirPath, { recursive: true });
+      this.dirCreated = mkdirPromise(dirPath);
     }
     private hashString = (str: string): string => {
       let hash = 0;
@@ -71,9 +83,7 @@ export module PreTrained {
       await this.dirCreated;
       try {
         return JSON.parse(
-          await Deno.readTextFile(
-            `${this.dirPath}/${this.hashString(hash)}.json`
-          )
+          await readPromise(`${this.dirPath}/${this.hashString(hash)}.json`)
         );
       } catch (e) {
         console.log(
@@ -86,10 +96,9 @@ export module PreTrained {
     public async set(hash: string, decision: QDecision<Action>): Promise<void> {
       await this.dirCreated;
       try {
-        await Deno.writeTextFile(
+        await writePromise(
           `${this.dirPath}/${this.hashString(hash)}.json`,
-          JSON.stringify(decision),
-          { create: true }
+          JSON.stringify(decision)
         );
       } catch (e) {
         console.log(
@@ -102,9 +111,9 @@ export module PreTrained {
     public async has(hash: string): Promise<boolean> {
       await this.dirCreated;
       try {
-        return Deno.stat(`${this.dirPath}/${this.hashString(hash)}.json`)
-          .then(() => true)
-          .catch(() => false);
+        return await existsPromise(
+          `${this.dirPath}/${this.hashString(hash)}.json`
+        );
       } catch (e) {
         console.log(
           `error while checking status of ${this.dirPath}/${this.hashString(
@@ -307,3 +316,186 @@ export module Game {
     }
   }
 }
+
+// export module RealTime {
+//   export abstract class StateNode<Action> {
+//     constructor(public totalReward: number = 0, public visits: number = 0) {}
+
+//     public abstract getState(): State<Action> | Promise<State<Action>>;
+//     public abstract getParent():
+//       | Promise<StateNode<Action> | undefined>
+//       | (StateNode<Action> | undefined);
+
+//     public abstract getChildren():
+//       | Promise<[Action, StateNode<Action>][] | undefined>
+//       | ([Action, StateNode<Action>][] | undefined);
+//     public abstract createChildren():
+//       | Promise<[Action, StateNode<Action>][] | undefined>
+//       | ([Action, StateNode<Action>][] | undefined);
+
+//     public getAverageReward = (): number => this.totalReward / this.visits;
+//     public USB1 = (logN: number): number =>
+//       this.visits === 0
+//         ? Infinity
+//         : this.getAverageReward() + 2 * Math.sqrt(logN / this.visits);
+//     public propagate = (value: number): void | Promise<void> => {
+//       this.totalReward += value;
+//       this.visits++;
+//     };
+//     public simulate = async (
+//       env: RewardTwoPlayerEnvironment<Action>
+//     ): Promise<number> => {
+//       let stateDepth = 0;
+//       let rewardState = await this.getState();
+//       while (!rewardState.isTerminal()) {
+//         const actions = rewardState.getPossibleActions();
+//         rewardState = env.reverseState(
+//           rewardState.moveCopy(
+//             actions[Math.floor(Math.random() * actions.length)]
+//           )
+//         );
+//         stateDepth++;
+//       }
+//       return env.getStateReward(rewardState, stateDepth);
+//     };
+//   }
+//   export class StateTree<Action> {
+//     constructor(public root: StateNode<Action>) {}
+
+//     public async print(): Promise<void> {
+//       const printNode = async (
+//         node: StateNode<Action>,
+//         depth: number = 1
+//       ): Promise<void> => {
+//         console.log(
+//           `${depth === 1 ? "*" : ""}${" ".repeat(depth)}${node.totalReward
+//             .toString()
+//             .padStart(2)}/${node.visits}`
+//         );
+//         const children = await node.getChildren();
+//         if (children) {
+//           for (const [action, child] of children) {
+//             // console.log(`${" ".repeat(depth + 1)}${action}`);
+//             await printNode(child, depth + 2);
+//           }
+//         }
+//       };
+//       await printNode(this.root);
+//     }
+//   }
+
+//   export class MemoryStateNode<Action> extends StateNode<Action> {
+//     private children: [Action, StateNode<Action>][] | undefined;
+//     constructor(
+//       public readonly env: RewardTwoPlayerEnvironment<Action>,
+//       private state: State<Action>,
+//       public totalReward: number = 0,
+//       public visits: number = 0,
+//       private parent?: StateNode<Action>
+//     ) {
+//       super(totalReward, visits);
+//     }
+//     public getState = (): State<Action> => this.state;
+//     public getParent = (): StateNode<Action> | undefined => this.parent;
+//     public getChildren = (): [Action, StateNode<Action>][] | undefined =>
+//       this.children;
+//     public createChildren = (): [Action, StateNode<Action>][] | undefined => {
+//       if (this.state.isTerminal()) return this.children;
+//       this.children ??= this.state
+//         .getPossibleActions()
+//         .map((action) => [
+//           action,
+//           new MemoryStateNode<Action>(
+//             this.env,
+//             this.env.reverseState(this.state.moveCopy(action)),
+//             0,
+//             0,
+//             this
+//           ),
+//         ]);
+//       return this.children;
+//     };
+//   }
+
+//   export class MemoryStateTree<Action> extends StateTree<Action> {
+//     constructor(env: RewardTwoPlayerEnvironment<Action>, state: State<Action>) {
+//       super(new MemoryStateNode<Action>(env, state));
+//     }
+//   }
+
+//   export const monteCarlo = async <Action>(
+//     env: RewardTwoPlayerEnvironment<Action>,
+//     state: State<Action>,
+//     gamma = 1,
+//     iterations = 1000
+//   ): Promise<MemoryStateTree<Action>> => {
+//     // TODO: for now, assume that there is only one root state:
+//     const tree = new MemoryStateTree<Action>(env, state);
+//     while (iterations--) {
+//       // tree.print();
+//       let node = tree.root;
+//       let children = await node.getChildren();
+//       let depth = 0;
+//       // Selection:
+//       while (node.visits !== 0) {
+//         if (children === undefined) {
+//           children = await node.createChildren();
+//           if (children === undefined) break;
+//           node = children[0][1];
+//           break;
+//         }
+//         const logN = Math.log(node.visits);
+//         const best =
+//           depth % 2 === 0
+//             ? children.reduce((a, b) =>
+//                 a[1].USB1(logN) >= b[1].USB1(logN) ? a : b
+//               )
+//             : children.reduce((a, b) =>
+//                 a[1].USB1(logN) < b[1].USB1(logN) ? a : b
+//               );
+//         node = best[1];
+//         children = await node.getChildren();
+//         depth++;
+//       }
+//       // Simulation:
+//       let reward = await node.simulate(env);
+//       // Back Propagation:
+//       let rollNode: StateNode<Action> | undefined = node;
+//       while (true) {
+//         rollNode.propagate(reward);
+//         rollNode = await rollNode.getParent();
+//         reward *= gamma;
+//         if (rollNode === undefined) break;
+//       }
+//     }
+//     return tree;
+//   };
+
+//   export const getAction = async <Action>(
+//     env: RewardTwoPlayerEnvironment<Action>,
+//     state: State<Action>,
+//     gamma = 1,
+//     iterations = 1000
+//   ): Promise<Action> => {
+//     const tree = await monteCarlo(env, state, gamma, iterations);
+//     const children = await tree.root.getChildren();
+//     if (children === undefined)
+//       throw new Error("Monte Carlo did not produced children");
+//     // await tree.print();
+//     if (true) {
+//       const mostVisited = children.reduce((a, b) =>
+//         a[1].visits >= b[1].visits ? a : b
+//       )[1];
+//       for (const child of children) {
+//         while (child[1].visits < mostVisited.visits) {
+//           let reward = await child[1].simulate(env);
+//           child[1].propagate(reward);
+//         }
+//       }
+//     }
+//     // await tree.print();
+//     return children.reduce((a, b) =>
+//       a[1].getAverageReward() >= b[1].getAverageReward() ? a : b
+//     )[0];
+//   };
+// }

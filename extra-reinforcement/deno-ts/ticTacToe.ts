@@ -108,7 +108,7 @@ const TestTicTacToe = async () => {
   const env = new GameEnvironment();
 
   const table = new Reinforcement.PreTrained.MemoryDecisionTable<Action>();
-  // const table = new Reinforcement.FileDecisionTable<Action>(
+  // const table = new Reinforcement.PreTrained.FileDecisionTable<Action>(
   //   "../saved/TicTacToe"
   // );
 
