@@ -1,5 +1,5 @@
-import * as Reinforcement from "./reinforcement";
-// import * as Reinforcement from "./reinforcement.ts";
+// import * as Reinforcement from "./reinforcement";
+import * as Reinforcement from "./reinforcement.ts";
 
 export enum Action {
   Add1 = "1",
@@ -117,12 +117,15 @@ const TestKingCoin3 = async () => {
 
   const table = await Reinforcement.PreTrained.multiPlayerTrain(env, 1);
   console.log(table);
-  const bot = new BotPlayer(table, "1");
-  const bot2 = new BotPlayer(table, "2");
+  const RTbot = new Reinforcement.Game.RealTimeBotPlayer(
+    Reinforcement.RealTime.getDecider(env, 100)
+  );
+  const bot = new Reinforcement.Game.BotPlayer(table, "1");
+  const bot2 = new Reinforcement.Game.BotPlayer(table, "2");
   const human = new HumanPlayer();
-  const random = new RandomPlayer();
-  const game = new Game([bot, bot2], new State(coins));
-  // const game = new Game([bot, human], new State(coins));
+  const random = new Reinforcement.Game.RandomPlayer<Action>();
+  // // const game = new Game([bot, human], new State(coins));
+  const game = new Game([RTbot, random], new State(coins));
   game.play(true);
 };
 
