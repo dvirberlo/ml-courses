@@ -1,33 +1,54 @@
-import * as Reinforcement from "./reinforcement.ts";
-
-/**
- * coin king game  works like this:
- * each turn you can add 1 or 2 coins to the pile
- * the player who adds the last coin wins
- *
- * for simplicity, the game will be allays played by 2 players
- */
+import * as Reinforcement from "./reinforcement";
+// import * as Reinforcement from "./reinforcement.ts";
 
 export enum Action {
   Add1 = "1",
   Add2 = "2",
+  Add3 = "3",
 }
 export const pileMove = (action: Action): number =>
-  action === Action.Add1 ? 1 : 2;
+  action === Action.Add1 ? 1 : action === Action.Add2 ? 2 : 3;
 
-export class HumanPlayer extends Reinforcement.Game.Player<Action> {
+export abstract class Player {
+  public abstract getMove(state: State): Promise<Action>;
+  public abstract getName(): string;
+}
+
+export class RandomPlayer extends Player {
+  public async getMove(state: State): Promise<Action> {
+    const possibleActions = state.getPossibleActions();
+    return possibleActions[Math.floor(Math.random() * possibleActions.length)];
+  }
+  public getName = (): string => "Random";
+}
+
+export class HumanPlayer extends Player {
   public async getMove(state: State): Promise<Action> {
     const possibleActions = state.getPossibleActions();
     const move = prompt("Enter your move: 1 or 2");
-    if (parseInt(move || "0") === 1) return Action.Add1;
-    else return Action.Add2;
+    return parseInt(move || "0").toString() as Action;
   }
   public getName = (): string => "Human";
 }
 
+export class BotPlayer extends Player {
+  constructor(
+    public readonly decisionTable: Reinforcement.PreTrained.DecisionTable<Action>,
+    private readonly id = Math.random().toString(32).slice(2, 4)
+  ) {
+    super();
+  }
+  public async getMove(state: State): Promise<Action> {
+    const decision = await this.decisionTable.get(state.toHash());
+    if (decision === undefined) throw new Error("No decision found");
+    return decision.action;
+  }
+  public getName = (): string => `Bot#${this.id}`;
+}
+
 export class Game {
   constructor(
-    public readonly players: Reinforcement.Game.Player<Action>[],
+    public readonly players: Player[],
     public readonly state = new State(5)
   ) {}
 
@@ -55,7 +76,10 @@ export class State implements Reinforcement.State<Action> {
   public current_pile: number = 0;
   constructor(public readonly pile_size: number) {}
   public getPossibleActions = () =>
-    [Action.Add1, Action.Add2].slice(0, this.pile_size - this.current_pile);
+    [Action.Add1, Action.Add2, Action.Add3].slice(
+      0,
+      this.pile_size - this.current_pile
+    );
   public isTerminal = (): boolean => this.current_pile >= this.pile_size;
   public move = (action: Action): void => {
     this.current_pile += pileMove(action);
@@ -78,7 +102,6 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
   public getInitialStates = (): State[] => [new State(this.pile_size)];
   public getStateReward = (state: State, stateDepth = 1): number =>
     state.isTerminal() ? (-1) ** stateDepth : 0;
-  // state.isTerminal() ? -1 : 0;
   public reverseState = (state: State): State => state;
 
   public getWinner = (state: Reinforcement.State<Action>): number =>
@@ -87,21 +110,20 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
   public actionToString = (action: Action): string => action;
 }
 
-const TestKingCoin = async () => {
+const TestKingCoin3 = async () => {
   // console.clear();
   const coins = 5;
   const env = new GameEnvironment(coins);
 
   const table = await Reinforcement.PreTrained.multiPlayerTrain(env, 1);
   console.log(table);
-
-  const bot = new Reinforcement.Game.BotPlayer(table, "1");
-  const bot2 = new Reinforcement.Game.BotPlayer(table, "2");
+  const bot = new BotPlayer(table, "1");
+  const bot2 = new BotPlayer(table, "2");
   const human = new HumanPlayer();
-  const random = new Reinforcement.Game.RandomPlayer();
-  // const game = new Game([bot, human], new State(coins));
+  const random = new RandomPlayer();
   const game = new Game([bot, bot2], new State(coins));
+  // const game = new Game([bot, human], new State(coins));
   game.play(true);
 };
 
-export const main = TestKingCoin;
+export const main = TestKingCoin3;

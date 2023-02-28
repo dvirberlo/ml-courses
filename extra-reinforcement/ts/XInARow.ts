@@ -1,4 +1,5 @@
-import * as Reinforcement from "./reinforcement.ts";
+import * as Reinforcement from "./reinforcement";
+// import * as Reinforcement from "./reinforcement.ts";
 
 const ROWS = 3;
 const COLS = 3;

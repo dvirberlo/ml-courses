@@ -1,18 +1,45 @@
 // export type DecisionTable<Action> = {
 //   [state: string]: QDecision<Action>;
 // };
+import fs from "fs";
 
+// TOOD: create?
 const writePromise = (file: string, data: string) =>
-  Deno.writeTextFile(file, data, { create: true });
+  new Promise<void>((res, rej) => {
+    fs.writeFile(file, data, (err) => {
+      if (err) return rej(err);
+      else return res();
+    });
+  });
 
-const readPromise = (file: string) => Deno.readTextFile(file);
+const readPromise = (file: string) =>
+  new Promise<string>((res, rej) => {
+    fs.readFile(file, "utf-8", (err, data) => {
+      if (err) return rej(err);
+      return res(data);
+    });
+  });
 
 const existsPromise = (file: string) =>
-  Deno.stat(file)
+  fs.promises
+    .access(file, fs.constants.F_OK)
     .then(() => true)
     .catch(() => false);
 
-const mkdirPromise = (dir: string) => Deno.mkdir(dir, { recursive: true });
+const mkdirPromise = (dir: string) =>
+  fs.promises.mkdir(dir, { recursive: true });
+
+// const writePromise = (file: string, data: string) =>
+//   Deno.writeTextFile(file, data, { create: true });
+
+// const readPromise = (file: string) => Deno.readTextFile(file);
+
+// const existsPromise = (file: string) =>
+//   Deno.stat(file)
+//     .then(() => true)
+//     .catch(() => false);
+
+// const mkdirPromise = (dir: string) => Deno.mkdir(dir, { recursive: true });
 
 export abstract class State<Action> {
   public abstract getPossibleActions(): Action[];

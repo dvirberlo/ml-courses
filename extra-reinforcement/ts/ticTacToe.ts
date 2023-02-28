@@ -1,4 +1,5 @@
-import * as Reinforcement from "./reinforcement.ts";
+import * as Reinforcement from "./reinforcement";
+// import * as Reinforcement from "./reinforcement.ts";
 
 //  export type BoardIndex = 0 | 1 | 2;
 export type BoardIndex = number;
