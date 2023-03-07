@@ -96,3 +96,21 @@ It is implemented so that it will explore and exploit, in a statistical way, the
 But, the key limitation is that it will have any information or strategy against a weak opponent, since it tends to explore the promising parts of the tree.
 But, as I noticed during implementation phases, the algorithm is optimizing the action only for the selected state, and do not generate any strategy for the next states, or a general model/ strategy for the game. \
 So, it is real-time maybe on-client decision making, but not a model that tries to make some generalized idea about the game.
+
+## Some Insights
+
+So, at first I tried a non optimized minimax full pre-calculated state-reward table. \
+It works perfectly, but it is not practical for deep games, since for 5x5 board of 4 in a row, it gets to ~10 GB of data and it takes long time to calculate.
+
+Then, I went to the other side- to real time decision making. \
+I implemented the minimax algorithm, but with alpha-beta pruning. \
+And I tried to implement the MCTS search tree algorithm, but I failed, for now. \
+The problem with that kind of solutions is that they are as well not very practical for deep games, since they require a lot of calculations, and they are not very good at exploiting the tree.
+
+So, I went down the road of NN. \
+To me, the NN seem to be a sophisticated **lossy** compression of the state-reward table. \
+It is a model that tries to learn the state-reward table, but it is not a perfect model.
+
+Another solution I should consider, is to use a NN to learn directly the connection between the state and the best action, but it needs special tuning for each game, and it is not a general solution.
+
+In general, till now, I found the NN training to be a very slow process, and it requires fine tuning for each game.

@@ -1,4 +1,5 @@
 import fs from "fs";
+import * as tf from "@tensorflow/tfjs-node";
 
 // export module IO {
 //   export const writePromise = (file: string, data: string) =>
@@ -48,6 +49,7 @@ export abstract class State<Action> {
   public abstract move(action: Action): void;
   public abstract moveCopy(action: Action): State<Action>;
   public abstract toHash(): string;
+  public abstract toVector(): number[];
 }
 
 export abstract class RewardEnvironment<Action> {
@@ -216,6 +218,67 @@ export module PreTrained {
 
     return decisionTable;
   };
+
+  export const modelTrain = async <Action>(
+    env: RewardTwoPlayerEnvironment<Action>,
+    getReward: (
+      state: State<Action>,
+      gamma: number
+    ) => Promise<number> | number,
+    depth: number,
+    model: tf.Sequential,
+    gamma = 1,
+    batchSize = 32,
+    epochs = 1
+  ): Promise<tf.Sequential> => {
+    let states = env.getInitialStates();
+    const batch = [];
+    while (depth-- && states.length !== 0) {
+      const nextStates = [];
+      for (const state of states) {
+        if (state.isTerminal()) continue;
+        const reward = await getReward(state, gamma);
+        batch.push({
+          state: state.toVector(),
+          reward,
+        });
+        for (const action of state.getPossibleActions()) {
+          const nextState = state.moveCopy(action);
+          nextStates.push(nextState);
+        }
+      }
+      if (batch.length >= batchSize) await batchTrain(batch, model, epochs);
+      states = nextStates;
+    }
+    if (batch.length !== 0) await batchTrain(batch, model, epochs);
+    return model;
+  };
+
+  const batchTrain = async <Action>(
+    batch: { state: number[]; reward: number }[],
+    model: tf.Sequential,
+    epochs = 1
+  ) => {
+    const xs = tf.tensor2d(
+      batch.map((b) => b.state),
+      [batch.length, batch[0].state.length]
+    );
+    const ys = tf.tensor2d(
+      batch.map((b) => [b.reward]),
+      [batch.length, 1]
+    );
+    const history = await model.fit(xs, ys, {
+      epochs,
+      verbose: 2,
+      shuffle: true,
+      batchSize: 32,
+      validationSplit: 0.1,
+    });
+    console.log(
+      `loss: ${history.history.loss}, val_loss: ${history.history.val_loss}`
+    );
+    batch.length = 0;
+  };
 }
 
 /**
@@ -295,6 +358,35 @@ export module Game {
     public getMove = async (state: State<Action>): Promise<Action> =>
       await this.getAction(state);
     public getName = (): string => `RTbot#${this.id}`;
+  }
+
+  export class ModelBotPlayer<Action> extends Player<Action> {
+    constructor(
+      public readonly model: tf.Sequential,
+      private readonly id = Math.random().toString(32).slice(2, 4)
+    ) {
+      super();
+    }
+    public async getMove(state: State<Action>): Promise<Action> {
+      const possibleActions = state.getPossibleActions();
+      const xs = tf.tensor2d(
+        possibleActions.map((a) => state.moveCopy(a).toVector()),
+        [possibleActions.length, state.toVector().length]
+      );
+      const ys = this.model.predict(xs) as tf.Tensor;
+      const rewards = await ys.data();
+      console.log("action-reward:", possibleActions, rewards);
+      const best = possibleActions.reduce(
+        (best, action, index) => {
+          if (rewards[index] > best.reward)
+            return { action, reward: rewards[index] };
+          return best;
+        },
+        { action: possibleActions[0], reward: -Infinity }
+      );
+      return best.action;
+    }
+    public getName = (): string => `ModelBot#${this.id}`;
   }
 
   export class Game<Action> {
@@ -418,15 +510,15 @@ export module RealTime {
     state: State<Action>,
     depth: number,
     gamma?: number
-  ): Action => {
-    const [value, action] = minimaxWithAlphaBetaPruning(
+  ): [number, Action] => {
+    const [reward, action] = minimaxWithAlphaBetaPruning(
       env,
       state,
       depth,
       gamma,
       Minimax.Max
     );
-    return action ?? state.getPossibleActions()[0];
+    return [reward, action ?? state.getPossibleActions()[0]];
   };
 
   export const getMinimaxDecider = <Action>(
@@ -434,7 +526,7 @@ export module RealTime {
     depth: number,
     gamma?: number
   ): ((state: State<Action>) => Action) => {
-    return (state) => minimaxDecision(env, state, depth, gamma);
+    return (state) => minimaxDecision(env, state, depth, gamma)[1];
   };
 
   // export abstract class StateNode<Action> {

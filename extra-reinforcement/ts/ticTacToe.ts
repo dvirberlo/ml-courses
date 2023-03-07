@@ -1,8 +1,9 @@
 import * as Reinforcement from "./reinforcement";
+import { prompt } from "./index";
 // import * as Reinforcement from "./reinforcement.ts";
 
 // tensorflow is not supported in deno yet
-import * as tf from "@tensorflow/tfjs";
+import * as tf from "@tensorflow/tfjs-node";
 
 //  export type BoardIndex = 0 | 1 | 2;
 export type BoardIndex = number;
@@ -72,6 +73,8 @@ export class State implements Reinforcement.State<Action> {
       .map((row) => row.map((c) => c.toString().padStart(2)).join(","))
       .join("\n");
   }
+
+  public toVector = (): number[] => this.board.flat();
 }
 export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Action> {
   public readonly playerCount: number = 2;
@@ -98,7 +101,7 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
 export class HumanPlayer extends Reinforcement.Game.Player<Action> {
   public async getMove(state: State): Promise<Action> {
     const possibleActions = state.getPossibleActions();
-    const move = prompt("Enter your move: (row, col)")?.split(",") as [
+    const move = (await prompt("Enter your move: (row, col)"))?.split(",") as [
       string,
       string
     ];
@@ -132,9 +135,85 @@ const TestTicTacToe = async () => {
   );
   const human = new HumanPlayer();
   const random = new Reinforcement.Game.RandomPlayer();
-  const game = new Reinforcement.Game.Game(env, [random, RTbot]);
-  // const game = new Reinforcement.Game.Game(env, [bot, human]);
+
+  // tensorflow model that accepts a vector of length 9 (board) and outputs the estimated reward value of the state
+  const model = tf.sequential();
+  model.add(
+    tf.layers.dense({
+      units: 729,
+      inputShape: [9],
+      activation: "relu",
+    })
+  );
+  model.add(
+    tf.layers.dense({
+      units: 243,
+      activation: "relu",
+    })
+  );
+  model.add(
+    tf.layers.dense({
+      units: 81,
+      activation: "relu",
+    })
+  );
+  model.add(
+    tf.layers.dense({
+      units: 27,
+      activation: "relu",
+    })
+  );
+  model.add(
+    tf.layers.dense({
+      units: 1,
+      activation: "linear",
+    })
+  );
+  model.compile({
+    optimizer: "rmsprop",
+    loss: "meanSquaredError",
+    metrics: ["accuracy"],
+  });
+  await Reinforcement.PreTrained.modelTrain(
+    env,
+    (state, gamma) => {
+      let result = Reinforcement.RealTime.minimaxDecision(
+        env,
+        state,
+        1000,
+        gamma
+      )[0];
+      if (result < 0) console.log(result);
+      return result;
+    },
+    10000,
+    model,
+    0.999,
+    10000
+  );
+  const ModelBot = new Reinforcement.Game.ModelBotPlayer<Action>(model, "4");
+
+  const game = new Reinforcement.Game.Game(env, [RTbot, ModelBot]);
+  // const game = new Reinforcement.Game.Game(env, [RTbot, human]);
   game.play(true);
+
+  // while (true) {
+  //   let game = new Reinforcement.Game.Game(env, [bot, ModelBot]);
+  //   await game.play(true);
+  //   game = new Reinforcement.Game.Game(env, [ModelBot, human]);
+  //   await game.play(true);
+  //   game = new Reinforcement.Game.Game(env, [human, ModelBot]);
+  //   await game.play(true);
+  // }
+  // const state = env.reverseState(
+  //   env.getInitialStates()[0].moveCopy(new Action(0, 0))
+  // );
+  // for (const action of state.getPossibleActions()) {
+  //   console.log(
+  //     action.toString(),
+  //     model.predict(tf.tensor2d([state.moveCopy(action).toVector()])).toString()
+  //   );
+  // }
 };
 
 export const main = TestTicTacToe;
