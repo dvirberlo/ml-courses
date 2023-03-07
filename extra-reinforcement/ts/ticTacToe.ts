@@ -1,6 +1,9 @@
 import * as Reinforcement from "./reinforcement";
 // import * as Reinforcement from "./reinforcement.ts";
 
+// tensorflow is not supported in deno yet
+import * as tf from "@tensorflow/tfjs";
+
 //  export type BoardIndex = 0 | 1 | 2;
 export type BoardIndex = number;
 export class Action {
@@ -123,9 +126,13 @@ const TestTicTacToe = async () => {
   // );
   const bot = new Reinforcement.Game.BotPlayer(table, "1");
   const bot2 = new Reinforcement.Game.BotPlayer(table, "2");
+  const RTbot = new Reinforcement.Game.RealTimeBotPlayer<Action>(
+    Reinforcement.RealTime.getMinimaxDecider(env, 1000),
+    "3"
+  );
   const human = new HumanPlayer();
   const random = new Reinforcement.Game.RandomPlayer();
-  const game = new Reinforcement.Game.Game(env, [bot, bot2]);
+  const game = new Reinforcement.Game.Game(env, [random, RTbot]);
   // const game = new Reinforcement.Game.Game(env, [bot, human]);
   game.play(true);
 };

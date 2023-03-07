@@ -1,5 +1,5 @@
-// import * as Reinforcement from "./reinforcement";
-import * as Reinforcement from "./reinforcement.ts";
+import * as Reinforcement from "./reinforcement";
+// import * as Reinforcement from "./reinforcement.ts";
 
 /**
  * coin king game  works like this:
@@ -90,29 +90,23 @@ export class GameEnvironment extends Reinforcement.RewardTwoPlayerEnvironment<Ac
 
 const TestKingCoin = async () => {
   // console.clear();
-  const coins = 5;
+  const coins = 10;
   const env = new GameEnvironment(coins);
 
   const table = await Reinforcement.PreTrained.multiPlayerTrain(env, 1);
   console.log(table);
 
-  const RTbot = new Reinforcement.Game.RealTimeBotPlayer(
-    Reinforcement.RealTime.getDecider(env, 100)
-  );
   const bot = new Reinforcement.Game.BotPlayer(table, "1");
   const bot2 = new Reinforcement.Game.BotPlayer(table, "2");
+  const RTbot = new Reinforcement.Game.RealTimeBotPlayer(
+    Reinforcement.RealTime.getMinimaxDecider(env, 100),
+    "3"
+  );
   const human = new HumanPlayer();
   const random = new Reinforcement.Game.RandomPlayer<Action>();
-  // // const game = new Game([bot, human], new State(coins));
-  const game = new Game([RTbot, random], new State(coins));
-  // game.play(true);
-  console.log(
-    Reinforcement.RealTime.minimaxWithAlphaBetaPruning(
-      env,
-      new State(coins),
-      100
-    )
-  );
+  // const game = new Game([bot, human], new State(coins));
+  const game = new Game([random, RTbot], new State(coins));
+  game.play(true);
 };
 
 export const main = TestKingCoin;

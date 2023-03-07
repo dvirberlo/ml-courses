@@ -1,9 +1,9 @@
 import * as Reinforcement from "./reinforcement";
 // import * as Reinforcement from "./reinforcement.ts";
 
-const ROWS = 3;
-const COLS = 3;
-const WIN_LENGTH = 3;
+const ROWS = 4;
+const COLS = 4;
+const WIN_LENGTH = 4;
 //  export type BoardIndex = 0 | 1 | 2;
 export type BoardIndex = number;
 export class Action {
@@ -151,9 +151,13 @@ const TestFourInARow = async () => {
   // console.log(Object.keys(table.table).length);
   const bot = new Reinforcement.Game.BotPlayer(table, "1");
   const bot2 = new Reinforcement.Game.BotPlayer(table, "2");
+  const RTbot = new Reinforcement.Game.RealTimeBotPlayer(
+    Reinforcement.RealTime.getMinimaxDecider(env, 1000),
+    "3"
+  );
   const human = new HumanPlayer();
   const random = new Reinforcement.Game.RandomPlayer();
-  const game = new Reinforcement.Game.Game(env, [bot, bot2]);
+  const game = new Reinforcement.Game.Game(env, [bot, RTbot]);
   // const game = new Reinforcement.Game.Game(env, [bot, human]);
   game.play(true);
 };

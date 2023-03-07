@@ -1,49 +1,47 @@
-// export type DecisionTable<Action> = {
-//   [state: string]: QDecision<Action>;
-// };
-// import fs from "fs";
+import fs from "fs";
+
+// export module IO {
+//   export const writePromise = (file: string, data: string) =>
+//     Deno.writeTextFile(file, data, { create: true });
+
+//   export const readPromise = (file: string) => Deno.readTextFile(file);
+
+//   export const existsPromise = (file: string) =>
+//     Deno.stat(file)
+//       .then(() => true)
+//       .catch(() => false);
+
+//   export const mkdirPromise = (dir: string) =>
+//     Deno.mkdir(dir, { recursive: true });
+// }
 
 export module IO {
-  // // TODO: create?
-  // export const writePromise = (file: string, data: string) =>
-  //   new Promise<void>((res, rej) => {
-  //     fs.writeFile(file, data, (err) => {
-  //       if (err) return rej(err);
-  //       else return res();
-  //     });
-  //   });
-
-  // export const readPromise = (file: string) =>
-  //   new Promise<string>((res, rej) => {
-  //     fs.readFile(file, "utf-8", (err, data) => {
-  //       if (err) return rej(err);
-  //       return res(data);
-  //     });
-  //   });
-
-  // export const existsPromise = (file: string) =>
-  //   fs.promises
-  //     .access(file, fs.constants.F_OK)
-  //     .then(() => true)
-  //     .catch(() => false);
-
-  // export const mkdirPromise = (dir: string) =>
-  //   fs.promises.mkdir(dir, { recursive: true });
-
+  // TODO: create?
   export const writePromise = (file: string, data: string) =>
-    Deno.writeTextFile(file, data, { create: true });
+    new Promise<void>((res, rej) => {
+      fs.writeFile(file, data, (err) => {
+        if (err) return rej(err);
+        else return res();
+      });
+    });
 
-  export const readPromise = (file: string) => Deno.readTextFile(file);
+  export const readPromise = (file: string) =>
+    new Promise<string>((res, rej) => {
+      fs.readFile(file, "utf-8", (err, data) => {
+        if (err) return rej(err);
+        return res(data);
+      });
+    });
 
   export const existsPromise = (file: string) =>
-    Deno.stat(file)
+    fs.promises
+      .access(file, fs.constants.F_OK)
       .then(() => true)
       .catch(() => false);
 
   export const mkdirPromise = (dir: string) =>
-    Deno.mkdir(dir, { recursive: true });
+    fs.promises.mkdir(dir, { recursive: true });
 }
-
 export abstract class State<Action> {
   public abstract getPossibleActions(): Action[];
   public abstract isTerminal(): boolean;
@@ -380,43 +378,39 @@ export module RealTime {
     method = Minimax.Max
   ): [number, Action?] => {
     if (state.isTerminal() || maxDepth === 0)
-      return [-env.getStateReward(state)];
+      return [env.getStateReward(state) * method];
     const possibleActions = state.getPossibleActions();
-    let bestValue = -Infinity * method;
-    let bestAction;
+    let bestValue = method === Minimax.Max ? -Infinity : Infinity;
+    let bestAction: Action | undefined;
     for (const action of possibleActions) {
-      const newState = env.reverseState(state.moveCopy(action));
+      const nextState = env.reverseState(state.moveCopy(action));
+      // note: the reverseState also reverses the reward
       const [value] = _minimaxWithAlphaBetaPruning(
         env,
-        newState,
+        nextState,
         maxDepth - 1,
         gamma,
         alpha,
         beta,
         -method
       );
-      console.log(
-        " ".repeat(maxDepth),
-        value,
-        action,
-        method,
-        env.getStateReward(state.moveCopy(action))
-      );
       if (method === Minimax.Max) {
-        if (value > bestValue) bestAction = action;
-        bestValue = Math.max(value, bestValue);
-
-        // if (bestValue >= beta) break;
+        if (value > bestValue) {
+          bestValue = value;
+          bestAction = action;
+        }
         alpha = Math.max(alpha, bestValue);
-      } else {
-        if (value < bestValue) bestAction = action;
-        bestValue = Math.min(value, bestValue);
-
-        // if (bestValue <= alpha) break;
+      }
+      if (method === Minimax.Min) {
+        if (value < bestValue) {
+          bestValue = value;
+          bestAction = action;
+        }
         beta = Math.min(beta, bestValue);
       }
+      if (beta <= alpha) break;
     }
-    return [gamma * env.reverseReward(bestValue), bestAction];
+    return [bestValue * gamma, bestAction];
   };
 
   export const minimaxDecision = <Action>(
@@ -435,7 +429,7 @@ export module RealTime {
     return action ?? state.getPossibleActions()[0];
   };
 
-  export const getDecider = <Action>(
+  export const getMinimaxDecider = <Action>(
     env: RewardTwoPlayerEnvironment<Action>,
     depth: number,
     gamma?: number
