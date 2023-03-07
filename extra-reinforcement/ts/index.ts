@@ -1,3 +1,5 @@
+import "core-js/actual/structured-clone";
+
 // import { main } from "./kingCoin";
 // import { main } from "./kingCoin3";
 import { main } from "./ticTacToe";
