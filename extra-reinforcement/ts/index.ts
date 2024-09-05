@@ -1,5 +1,6 @@
 import "core-js/actual/structured-clone";
 
+
 import * as readline from "readline";
 export const prompt = (question: string): Promise<string> =>
   new Promise((resolve) => {
@@ -13,10 +14,11 @@ export const prompt = (question: string): Promise<string> =>
     });
   });
 
+
 // import { main } from "./kingCoin";
 // import { main } from "./kingCoin3";
-import { main } from "./ticTacToe";
-// import { main } from "./XInARow";
+// import { main } from "./ticTacToe";
+import { main } from "./XInARow";
 
 // // import { main } from "./kingCoin.ts";
 // // import { main } from "./kingCoin3.ts";

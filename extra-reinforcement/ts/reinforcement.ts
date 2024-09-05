@@ -1,5 +1,5 @@
 import fs from "fs";
-import * as tf from "@tensorflow/tfjs-node";
+import * as tf from "@tensorflow/tfjs";
 
 // export module IO {
 //   export const writePromise = (file: string, data: string) =>

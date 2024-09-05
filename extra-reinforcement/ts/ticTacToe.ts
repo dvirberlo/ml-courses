@@ -3,7 +3,7 @@ import { prompt } from "./index";
 // import * as Reinforcement from "./reinforcement.ts";
 
 // tensorflow is not supported in deno yet
-import * as tf from "@tensorflow/tfjs-node";
+import * as tf from "@tensorflow/tfjs";
 
 //  export type BoardIndex = 0 | 1 | 2;
 export type BoardIndex = number;

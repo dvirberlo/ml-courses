@@ -2,7 +2,7 @@ import * as Reinforcement from "./reinforcement";
 // import * as Reinforcement from "./reinforcement.ts";
 
 const ROWS = 4;
-const COLS = 4;
+const COLS = 5;
 const WIN_LENGTH = 4;
 //  export type BoardIndex = 0 | 1 | 2;
 export type BoardIndex = number;
@@ -89,6 +89,7 @@ export class State implements Reinforcement.State<Action> {
     return copy;
   };
   public toHash = (): string => this.board.toString();
+  public toVector = (): number[] => this.board.flat();
   public toString(): string {
     return this.board
       .map((row) =>
@@ -157,7 +158,7 @@ const TestFourInARow = async () => {
   );
   const human = new HumanPlayer();
   const random = new Reinforcement.Game.RandomPlayer();
-  const game = new Reinforcement.Game.Game(env, [bot, RTbot]);
+  const game = new Reinforcement.Game.Game(env, [random, RTbot]);
   // const game = new Reinforcement.Game.Game(env, [bot, human]);
   game.play(true);
 };
